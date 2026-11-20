@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#171715">
+  <meta name="robots" content="noindex,nofollow">
+  <title>Armiag Admin</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Italiana&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="admin.css">
+  <link rel="stylesheet" href="recovery.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="supabase-config.js" defer></script>
+  <script src="supabase.js" defer></script>
+  <script src="admin.js" defer></script>
+  <script src="recovery.js" defer></script>
+</head>
+<body class="admin-body">
+  <section class="login-screen" id="loginScreen">
+    <div class="login-brand"><span class="login-mark">Armiag</span><span class="login-caption">Private administration</span></div>
+    <form class="login-card" id="loginForm">
+      <span class="eyebrow">Welcome back</span>
+      <h1>Admin sign in</h1>
+      <p>Use the administrator account registered with Supabase.</p>
+      <label>Email address<input type="email" name="email" autocomplete="username" required></label>
+      <label>Password<input type="password" name="password" autocomplete="current-password" required></label>
+      <button class="button button-gold" type="submit">Sign in <span>↗</span></button>
+      <button class="recovery-link" id="forgotPasswordButton" type="button">Forgot your password?</button>
+      <p class="recovery-status" id="recoveryMessage" role="status" aria-live="polite" aria-atomic="true"></p>
+      <p class="form-message" id="loginMessage" role="status"></p>
+    </form>
+    <a class="back-link" href="index.html">← Return to the storefront</a>
+  </section>
+
+  <div class="admin-shell" id="adminShell" hidden>
+    <aside class="sidebar" id="sidebar">
+      <a class="admin-wordmark" href="index.html">Armiag</a>
+      <div class="sidebar-label">WORKSPACE</div>
+      <nav class="side-nav" aria-label="Admin navigation">
+        <button class="nav-item active" data-view="overview"><span>◫</span> Overview</button>
+        <button class="nav-item" data-view="products"><span>◇</span> Products</button>
+        <button class="nav-item" data-view="homepage"><span>▧</span> Homepage</button>
+        <button class="nav-item" data-view="appearance"><span>◐</span> Appearance</button>
+        <button class="nav-item" data-view="orders"><span>▤</span> Orders</button>
+      </nav>
+      <div class="sidebar-bottom"><div class="admin-user"><span class="avatar">A</span><span id="adminEmail">Administrator</span></div><button id="signOutButton" class="sign-out">Sign out ↗</button></div>
+    </aside>
+    <main class="admin-main">
+      <header class="topbar"><button class="mobile-menu" id="mobileMenu" aria-label="Open menu">☰</button><div><span class="topbar-kicker">Armiag / ADMINISTRATION</span><h1 id="viewTitle">Overview</h1></div><a class="storefront-link" href="./index.html">View storefront ↗</a></header>
+      <div class="admin-content">
+        <div id="adminNotice" class="notice" role="status"></div>
+        <section class="view active" id="view-overview">
+          <div class="welcome-row"><div><span class="eyebrow">YOUR BRAND AT A GLANCE</span><h2>Good to see you.</h2><p>Manage your collection and keep your storefront in step.</p></div><button class="button button-dark" data-go="products">Manage products <span>↗</span></button></div>
+          <div class="stat-grid"><article class="stat-card"><span>ALL PRODUCTS</span><strong id="statProducts">—</strong><small>Items in your catalogue</small></article><article class="stat-card"><span>AVAILABLE</span><strong id="statAvailable">—</strong><small>Active on the storefront</small></article><article class="stat-card"><span>ORDERS</span><strong id="statOrders">—</strong><small>Orders recorded</small></article><article class="stat-card"><span>NEEDS ATTENTION</span><strong id="statPending">—</strong><small>Pending or processing</small></article></div>
+          <section class="panel overview-panel"><div class="panel-heading"><div><span class="eyebrow">RECENT ACTIVITY</span><h2>Latest orders</h2></div><button class="text-button" data-go="orders">View all orders ↗</button></div><div id="recentOrders" class="empty-panel">Loading orders…</div></section>
+        </section>
+        <section class="view" id="view-products">
+          <div class="section-toolbar"><div><span class="eyebrow">YOUR FRAGRANCE LINEUP</span><h2>Products</h2><p>Add new scents or update the details customers see.</p></div><button class="button button-gold" id="addProductButton">＋ Add product</button></div>
+          <section class="panel"><div class="table-wrap"><table><thead><tr><th>PRODUCT</th><th>PRICE</th><th>STOCK</th><th>VISIBILITY</th><th></th></tr></thead><tbody id="productsTable"><tr><td colspan="5">Loading products…</td></tr></tbody></table></div></section>
+        </section>
+        <section class="view" id="view-homepage">
+          <div class="section-toolbar"><div><span class="eyebrow">STORY AND CAMPAIGNS</span><h2>Homepage</h2><p>Edit the sections currently shown on your storefront.</p></div></div>
+          <div class="content-grid" id="homepageEditor"><div class="panel empty-panel">Loading homepage content…</div></div>
+        </section>
+        <section class="view" id="view-appearance">
+          <div class="section-toolbar"><div><span class="eyebrow">THE Armiag SIGNATURE</span><h2>Appearance</h2><p>Adjust your brand colours, typography and wordmark.</p></div></div>
+          <form id="appearanceForm" class="panel appearance-form">
+            <div class="appearance-intro"><div><span class="eyebrow">BRAND IDENTITY</span><h3>Set the visual tone</h3></div><label class="publish-toggle"><input type="checkbox" name="is_published"><span>Apply changes to storefront</span></label></div>
+            <div class="form-grid"><label>Wordmark text<input name="logoText" maxlength="28" placeholder="Armiag"></label><label>Wordmark image<input type="file" name="logoFile" accept="image/png,image/jpeg,image/webp,image/avif"><small>Upload a transparent PNG or a compact logo image.</small></label>
+              <label class="color-field">Ink / dark colour<span><input type="color" name="inkColor"><input class="color-value" name="inkText" aria-label="Ink hex value"></span></label>
+              <label class="color-field">Paper / background<span><input type="color" name="paperColor"><input class="color-value" name="paperText" aria-label="Paper hex value"></span></label>
+              <label class="color-field">Champagne accent<span><input type="color" name="accentColor"><input class="color-value" name="accentText" aria-label="Accent hex value"></span></label>
+              <label>Heading font<select name="headingFont"><option value="Italiana">Italiana</option><option value="Georgia">Georgia</option><option value="DM Sans">DM Sans</option><option value="Jost">Jost</option><option value="Cormorant Garamond">Cormorant Garamond</option><option value="Playfair Display">Playfair Display</option></select></label>
+              <label>Body font<select name="bodyFont"><option value="DM Sans">DM Sans</option><option value="Arial">Arial</option><option value="Georgia">Georgia</option><option value="Jost">Jost</option><option value="Cormorant Garamond">Cormorant Garamond</option><option value="Playfair Display">Playfair Display</option></select></label>
+            </div>
+            <div class="form-actions"><button class="button button-dark" type="submit">Save appearance <span>↗</span></button></div>
+          </form>
+        </section>
+        <section class="view" id="view-orders">
+          <div class="section-toolbar"><div><span class="eyebrow">CUSTOMER CARE</span><h2>Orders</h2><p>Review delivery details and keep customers' orders moving.</p></div><button class="button button-outline" id="refreshOrders">Refresh ↻</button></div>
+          <section class="panel"><div class="table-wrap"><table class="orders-table"><thead><tr><th>ORDER</th><th>CUSTOMER</th><th>TOTAL</th><th>PAYMENT</th><th>ORDER STATUS</th><th>DELIVERY</th><th></th></tr></thead><tbody id="ordersTable"><tr><td colspan="7">Loading orders…</td></tr></tbody></table></div></section>
+          <div id="orderDetail" class="order-detail" hidden></div>
+        </section>
+      </div>
+    </main>
+  </div>
+
+  <dialog class="product-dialog" id="productDialog">
+    <form id="productForm" class="dialog-card">
+      <div class="dialog-heading"><div><span class="eyebrow">COLLECTION EDITOR</span><h2 id="productDialogTitle">Add a fragrance</h2></div><button type="button" class="icon-button" id="closeProductDialog" aria-label="Close">×</button></div>
+      <input type="hidden" name="id">
+      <div class="form-grid">
+        <label>Product name<input name="name" required maxlength="120"></label><label>Concentration / edition<input name="concentration" placeholder="Eau de parfum" maxlength="80"></label><label>Price (INR)<input name="price_inr" type="number" min="0" step="0.01" required></label><label>Size (ml)<input name="size_ml" type="number" min="1" step="1" required></label><label>Stock quantity<input name="stock_quantity" type="number" min="0" step="1" required value="0"></label><label class="check-field"><input type="checkbox" name="is_active"> Show this product on the storefront</label><label class="full-field">Short product description<textarea name="description" rows="4" maxlength="3000"></textarea></label>
+        <div class="full-field fragrance-editor-heading"><span class="eyebrow">THE FRAGRANCE STORY</span><p>Editable sample copy is provided. Confirm all notes and claims with your fragrance supplier before launch.</p></div>
+        <label class="full-field">Fragrance story<textarea name="story" rows="5" maxlength="3000"></textarea></label>
+        <label>Fragrance family<input name="family" placeholder="Amber · Woody"></label><label>Character<input name="character" placeholder="Warm, refined, magnetic"></label><label>Top notes<input name="top_notes" placeholder="Bergamot, pink pepper"></label><label>Heart notes<input name="heart_notes" placeholder="Rose, cedarwood"></label><label class="full-field">Base notes<input name="base_notes" placeholder="Oud, amber, musk"></label>
+        <label>Intensity<input name="intensity" placeholder="Rich and expressive"></label><label>Mood<input name="mood" placeholder="Confident, mysterious"></label><label>Best occasions<input name="occasion" placeholder="Evening, special occasions"></label><label>Season<input name="season" placeholder="Autumn, winter, all seasons"></label>
+        <div class="full-field fragrance-editor-heading"><span class="eyebrow">PRODUCT DETAILS</span></div>
+        <label>Gender / style<input name="style" placeholder="Unisex"></label><label>Country of origin<input name="origin" placeholder="Confirm with supplier"></label><label>Concentration<input name="concentration_detail" placeholder="Eau de parfum"></label><label>Volume / size<input name="volume_detail" placeholder="50 ml"></label><label>Ingredients / composition<textarea name="ingredients" rows="2" placeholder="Enter supplier-approved composition"></textarea></label><label>How to use<textarea name="usage" rows="2"></textarea></label>
+        <div class="full-field fragrance-editor-heading"><span class="eyebrow">SHOPPING & SERVICE INFORMATION</span></div>
+        <label>Packaging<input name="packaging" placeholder="Presentation box and bottle details"></label><label>Delivery information<input name="delivery" placeholder="Delivery estimate to be confirmed"></label><label>Returns / exchange<textarea name="returns" rows="2"></textarea></label><label>Gift options<input name="gift" placeholder="Gift packaging availability"></label>
+        <div class="full-field fragrance-editor-heading"><span class="eyebrow">SEARCH ENGINE DETAILS</span></div>
+        <label class="full-field">SEO title<input name="seo_title" maxlength="160"></label><label class="full-field">SEO description<textarea name="seo_description" rows="2" maxlength="320"></textarea></label>
+        <label class="full-field sample-flag"><input type="checkbox" name="is_sample" checked> These fragrance details are illustrative sample content and need verification before launch.</label>
+        <label class="full-field">Product photographs<input type="file" name="images" accept="image/jpeg,image/png,image/webp,image/avif" multiple><small>Choose multiple images. Each image may be up to 10 MB.</small></label><div class="full-field image-preview-list" id="productImageList"></div>
+      </div>
+      <div class="dialog-actions"><button type="button" class="button button-outline" id="cancelProduct">Cancel</button><button type="submit" class="button button-gold" id="saveProductButton">Save product <span>↗</span></button></div>
+    </form>
+  </dialog>
+</body>
+</html>

@@ -1,0 +1,57 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Armiag Home Editor</title>
+<style>
+body{margin:0;font:15px/1.5 system-ui,sans-serif;background:#f5f2eb;color:#171715}
+.wrap{max-width:760px;margin:0 auto;padding:20px}h1{font-weight:500;margin:0}
+.bar{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;gap:8px;flex-wrap:wrap}
+.card,.box{background:#fff;border-radius:10px;padding:18px;margin-bottom:14px;box-shadow:0 1px 3px #0001}
+.card h3{margin:0 0 10px}small{color:#8a7a55;font-weight:400}
+label{display:block;margin:0 0 10px;font-size:13px;color:#555}
+input:not([type=checkbox]),textarea{width:100%;box-sizing:border-box;padding:9px;margin-top:3px;border:1px solid #d8d3c6;border-radius:6px;font:inherit}
+.chk{display:inline-block;margin-right:14px;color:#171715}.row{border-top:1px solid #eee;padding-top:10px;margin-top:6px}
+button{background:#171715;color:#fff;border:0;border-radius:6px;padding:9px 16px;font:inherit;cursor:pointer}button.alt{background:#b69b68}
+img{max-width:100%;max-height:120px;border-radius:6px;display:block;margin-bottom:6px}
+#msg{position:sticky;top:8px;padding:10px;border-radius:6px;color:#fff;z-index:9}.ok{background:#2f7d4f}.bad{background:#b3402f}
+</style></head><body><div class="wrap">
+<div id="msg" hidden></div>
+<div id="login" class="box" hidden><h1>Armiag admin</h1><br><label>Email<input id="em" type="email"></label><label>Password<input id="pw" type="password"></label><button id="go">Sign in</button> <span id="lerr" style="color:#b3402f"></span></div>
+<div id="panel" hidden><div class="bar"><h1>Home page editor</h1><span><button class="alt" id="swap">⇅ Swap top slides</button> <button id="out">Sign out</button></span></div>
+<p style="color:#666">Each section has its own Save button. Tick <b>Visible</b> and <b>Published</b> for it to appear on the website.</p><div id="cards"></div></div>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script><script src="supabase-config.js"></script>
+<script>
+const cfg=window.ARMIAG_SUPABASE_CONFIG,sb=supabase.createClient(cfg.url,cfg.publishableKey),B='armiag-media',$=s=>document.querySelector(s);
+const S=[{id:'hero',t:'Top slide A',img:1,btn:1,eb:1},{id:'hero_2',t:'Top slide B',img:1,btn:1,eb:1},{id:'collection',t:'Collection section',btn:1,eb:1},{id:'story',t:'Brand story',img:1,btn:1,eb:1},{id:'quote',t:'Quote section',img:1,eb:1},{id:'banner',t:'Announcement bar',btn:1}];
+let rows={};
+const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const msg=(t,bad)=>{const n=$('#msg');n.textContent=t;n.className=bad?'bad':'ok';n.hidden=false;clearTimeout(msg.t);msg.t=setTimeout(()=>n.hidden=true,6000)};
+const show=a=>{$('#login').hidden=a;$('#panel').hidden=!a};
+async function start(){const {data:{session}}=await sb.auth.getSession();if(!session)return show(false);
+ const {data}=await sb.from('admin_users').select('user_id').eq('user_id',session.user.id).maybeSingle();
+ if(!data){await sb.auth.signOut();$('#lerr').textContent='Not an admin account.';return show(false)}show(true);load()}
+$('#go').onclick=async()=>{const {error}=await sb.auth.signInWithPassword({email:$('#em').value.trim(),password:$('#pw').value});if(error)$('#lerr').textContent=error.message;else start()};
+$('#out').onclick=async()=>{await sb.auth.signOut();show(false)};
+async function load(){const {data,error}=await sb.from('homepage_content').select('*');if(error)return msg(error.message+' — run homepage-upgrade.sql first.',true);rows=Object.fromEntries(data.map(r=>[r.id,r]));render()}
+const ord=id=>rows[id]?.sort_order??(id==='hero'?0:1);
+const chk=(n,l,v)=>`<label class="chk"><input type="checkbox" name="${n}"${v?' checked':''}> ${l}</label>`;
+function render(){const slides=['hero','hero_2'].sort((a,b)=>ord(a)-ord(b)),list=[...slides,...S.map(s=>s.id).filter(i=>!slides.includes(i))];
+$('#cards').innerHTML=list.map(id=>{const d=S.find(s=>s.id===id),r=rows[id]||{},p=slides.indexOf(id);
+return `<form class="card" data-id="${id}"><h3>${d.t}${p>=0?` <small>· shows ${p?'second':'first'}</small>`:''}</h3>
+${d.eb?`<label>Small title above heading<input name="eyebrow" value="${esc(r.eyebrow)}"></label>`:''}
+<label>Heading<input name="heading" value="${esc(r.heading)}"></label>
+${d.id==='banner'?'':`<label>Text<textarea name="body" rows="3">${esc(r.body)}</textarea></label>`}
+${d.btn?`<label>Button label<input name="button_label" value="${esc(r.button_label)}"></label><label>Button link<input name="button_url" value="${esc(r.button_url)}" placeholder="#collection"></label>`:''}
+<div class="row"><b>Text</b> &nbsp;${chk('is_visible','Visible',r.is_visible??true)}${chk('is_published','Published',r.is_published??false)}</div>
+${d.img?`<div class="row"><b>Image</b>${r.image_url?`<img src="${esc(r.image_url)}" alt="">`:''}<input name="image" type="file" accept="image/*">${chk('image_visible','Visible',r.image_visible??true)}${chk('image_published','Published',r.image_published??true)}</div>`:''}
+<br><button type="submit">Save</button></form>`}).join('')}
+$('#cards').addEventListener('submit',async e=>{e.preventDefault();const f=e.target,id=f.dataset.id,fd=new FormData(f),btn=f.querySelector('button'),r=rows[id]||{};btn.disabled=true;
+ try{let url=r.image_url||'',file=fd.get('image');
+  if(file&&file.size){if(file.size>1e7)throw new Error('Image must be under 10 MB');const path=`homepage/${id}/${crypto.randomUUID()}.${(file.name.split('.').pop()||'jpg').replace(/\W/g,'')}`;
+   const {error}=await sb.storage.from(B).upload(path,file,{contentType:file.type});if(error)throw error;url=sb.storage.from(B).getPublicUrl(path).data.publicUrl}
+  const g=n=>String(fd.get(n)||''),row={id,eyebrow:g('eyebrow'),heading:g('heading'),body:g('body'),button_label:g('button_label'),button_url:g('button_url'),image_url:url,
+   is_visible:fd.has('is_visible'),is_published:fd.has('is_published'),image_visible:f.elements.image_visible?fd.has('image_visible'):true,image_published:f.elements.image_published?fd.has('image_published'):true,sort_order:ord(id),updated_at:new Date().toISOString()};
+  const {error}=await sb.from('homepage_content').upsert(row,{onConflict:'id'});if(error)throw error;msg('Saved ✓');await load()}
+ catch(err){msg(err.message||'Save failed',true)}btn.disabled=false});
+$('#swap').onclick=async()=>{const a=ord('hero'),b=ord('hero_2');
+ const r1=await sb.from('homepage_content').update({sort_order:b}).eq('id','hero'),r2=await sb.from('homepage_content').update({sort_order:a===b?a+1:a}).eq('id','hero_2');
+ if(r1.error||r2.error)return msg((r1.error||r2.error).message,true);msg('Slides swapped ✓');load()};
+start();
+</script></div></body></html>

@@ -1,0 +1,37 @@
+﻿<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#11110f">
+  <meta name="description" content="Armiag — a considered world of fragrance. Discover the collection and the art of scent.">
+  <title>Armiag — The Art of Scent</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600&family=DM+Sans:wght@400;500;600&family=Italiana&family=Jost:wght@400;500;600&family=Playfair+Display:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="supabase-config.js" defer></script>
+  <script src="supabase.js" defer></script>
+  <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+  <script src="app.js" defer></script>
+</head>
+<body>
+  <div class="announcement">A considered world of fragrance <span>·</span> Discover Armiag</div>
+  <header class="site-header">
+    <a class="wordmark" href="#home" aria-label="Armiag home">Armiag</a>
+    <button class="menu-toggle" aria-label="Open navigation" aria-expanded="false"><span></span><span></span></button>
+    <nav class="main-nav" aria-label="Main navigation">
+      <a href="#collection">The collection</a><a href="#about">Our story</a><a href="#track-order">Track order</a><a href="#contact">Contact</a>
+    </nav>
+    <a class="bag-link" href="#cart" aria-label="Shopping bag">Bag <span class="bag-count">0</span></a>
+    <div class="mega-panel" id="megaPanel" hidden></div>
+  </header>
+  <main id="app" tabindex="-1"></main>
+  <footer class="site-footer">
+    <div class="footer-top"><a class="wordmark" href="#home">Armiag</a><p>A considered world of fragrance.</p><a href="#contact">Get in touch <span>↗</span></a></div>
+    <div class="footer-bottom"><span>© <span id="year"></span> Armiag</span><span>Made for moments that stay.</span><a href="#collection">Discover the collection</a></div>
+  </footer>
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+</body>
+</html>
