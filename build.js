@@ -7,15 +7,21 @@
 const fs = require('fs');
 const path = require('path');
 
-const SRC = path.join(__dirname, 'site');
+// Website files may be inside a "site" folder, or directly in the project root.
 const OUT = path.join(__dirname, 'dist');
+const SRC = fs.existsSync(path.join(__dirname, 'site', 'index.html')) ? path.join(__dirname, 'site') : __dirname;
+const SKIP = new Set(['build.js', 'netlify.toml', '.gitignore', 'dist', 'node_modules', '.git', 'package.json', 'package-lock.json', 'README.md']);
 
 function fail(message) { console.error('BUILD ERROR: ' + message); process.exit(1); }
 
-if (!fs.existsSync(path.join(SRC, 'index.html'))) fail('site/index.html was not found. Put all your website files inside the "site" folder.');
+if (!fs.existsSync(path.join(SRC, 'index.html'))) fail('index.html was not found. Upload your website files together with build.js.');
 
 fs.rmSync(OUT, { recursive: true, force: true });
-fs.cpSync(SRC, OUT, { recursive: true });
+fs.mkdirSync(OUT, { recursive: true });
+for (const entry of fs.readdirSync(SRC)) {
+  if (SRC === __dirname && SKIP.has(entry)) continue;
+  fs.cpSync(path.join(SRC, entry), path.join(OUT, entry), { recursive: true });
+}
 
 function readConfig() {
   const file = path.join(SRC, 'supabase-config.js');
