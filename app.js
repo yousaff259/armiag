@@ -18,10 +18,22 @@ let lastRenderedTrackingReference=null;
 function htmlEscape(value){return String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
 function parseHashRoute(){const [path='',query='']=location.hash.slice(1).split('?');let segments;try{segments=decodeURIComponent(path||'home').split('/')}catch{segments=['home']}return {segments,query:new URLSearchParams(query)}}
 let heroReady=false;
+const HOME_CACHE_KEY='armiag_home_cache';
+try{const cached=JSON.parse(localStorage.getItem(HOME_CACHE_KEY)||'null');if(Array.isArray(cached)&&cached.length){SITE_CONTENT=Object.fromEntries(cached.map(row=>[row.id,row]));heroReady=true;}}catch(error){}
+try{if(Array.isArray(window.ARMIAG_PRELOAD)&&window.ARMIAG_PRELOAD.length){SITE_CONTENT=Object.fromEntries(window.ARMIAG_PRELOAD.map(row=>[row.id,row]));heroReady=true;}}catch(error){}
 async function loadSupabaseProducts(){
   if(!window.armiagSupabase){catalogState='error';heroReady=true;render();return;}
   const contentPromise=window.armiagSupabase.from('homepage_content').select('id,heading,body,button_label,button_url,image_url,is_visible,is_published,eyebrow,sort_order,image_visible,image_published');
-  contentPromise.then(result=>{if(!result.error){SITE_CONTENT=Object.fromEntries((result.data||[]).map(row=>[row.id,row]));}heroReady=true;render();},()=>{heroReady=true;render();});
+  contentPromise.then(result=>{
+    const wasReady=heroReady;let changed=true;
+    if(!result.error){
+      const rows=result.data||[];const json=JSON.stringify(rows);
+      try{changed=localStorage.getItem(HOME_CACHE_KEY)!==json;localStorage.setItem(HOME_CACHE_KEY,json);}catch(error){}
+      SITE_CONTENT=Object.fromEntries(rows.map(row=>[row.id,row]));
+    }
+    heroReady=true;
+    if(!wasReady||changed)render();
+  },()=>{if(!heroReady){heroReady=true;render();}});
   const {data,error}=await window.armiagSupabase.from('products')
     .select('id,name,description,price_inr,size_ml,concentration,stock_quantity,is_active,fragrance_details,product_images(image_url,sort_order)')
     .eq('is_active',true).order('name');

@@ -10,10 +10,12 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600&family=DM+Sans:wght@400;500;600&family=Italiana&family=Jost:wght@400;500;600&family=Playfair+Display:wght@400;500;600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="styles.css">
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <!--ARMIAG_PRELOAD-->
+  <script>try{var c=JSON.parse(localStorage.getItem('armiag_home_cache')||'null');var h=c&&c.filter(function(r){return r.id==='hero'})[0];if(h&&h.image_url&&/^https:\/\//.test(h.image_url)){var l=document.createElement('link');l.rel='preload';l.as='image';l.href=h.image_url;document.head.appendChild(l)}}catch(e){}</script>
+  <script defer src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="supabase-config.js" defer></script>
   <script src="supabase.js" defer></script>
-  <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+  <script async src="https://checkout.razorpay.com/v1/checkout.js"></script>
   <script src="app.js" defer></script>
 </head>
 <body>

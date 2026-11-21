@@ -6,6 +6,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const vm = require('vm');
 
 // Website files may be inside a "site" folder, or directly in the project root.
 const OUT = path.join(__dirname, 'dist');
@@ -44,21 +45,39 @@ async function fetchHomepage({ url, key }) {
   return rows;
 }
 
+
+// Builds the hero markup exactly as app.js would, using app.js's own functions,
+// so the hero is already inside index.html (no waiting for scripts or the database).
+function prerenderHero(rows) {
+  const appJs = fs.readFileSync(path.join(OUT, 'app.js'), 'utf8');
+  const pick = re => (appJs.match(re) || [])[0];
+  const htmlEscape = pick(/^function htmlEscape[^\n]*$/m);
+  const safeSiteUrl = pick(/^function safeSiteUrl[^\n]*$/m);
+  const start = appJs.indexOf('const HERO_BODY=');
+  const end = appJs.indexOf('let heroTimer=null;');
+  if (!htmlEscape || !safeSiteUrl || start < 0 || end < start) throw new Error('could not find the hero functions in app.js');
+  const FAKE = 'https://armiag-build.invalid';
+  const code = `var SITE_CONTENT=${JSON.stringify(Object.fromEntries(rows.map(row => [row.id, row])))};var heroReady=true;\n${htmlEscape}\n${safeSiteUrl}\n${appJs.slice(start, end)}\nheroSlider();`;
+  const html = vm.runInNewContext(code, { location: { href: FAKE + '/', hostname: 'armiag.netlify.app' }, URL, String, Boolean }, { timeout: 2000 });
+  return String(html).split(FAKE).join('');
+}
+
 function escapeAttr(value) { return String(value).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;'); }
 
 (async () => {
   const config = readConfig();
   let injection = '';
+  let rows = null;
   if (!config.url || !config.key || /127\.0\.0\.1|localhost/.test(config.url)) {
     console.warn('WARNING: supabase-config.js has no real Supabase address, so the hero was not pre-loaded.');
   } else {
     try {
-      const rows = await fetchHomepage(config);
+      rows = await fetchHomepage(config);
       const json = JSON.stringify(rows).replace(/</g, '\\u003c').replace(/\u2028/g, '\\u2028').replace(/\u2029/g, '\\u2029');
       injection += `<script>window.ARMIAG_PRELOAD=${json};</script>\n`;
       const hero = rows.find(row => row.id === 'hero');
       if (hero && hero.is_published && hero.image_url && /^https:\/\//.test(hero.image_url)) {
-        injection += `<link rel="preload" as="image" href="${escapeAttr(hero.image_url)}">\n`;
+        injection += `<link rel="preload" as="image" fetchpriority="high" href="${escapeAttr(hero.image_url)}">\n`;
       }
       console.log(`Pre-loaded ${rows.length} homepage section(s) into index.html.`);
     } catch (error) {
@@ -67,6 +86,22 @@ function escapeAttr(value) { return String(value).replace(/&/g, '&amp;').replace
   }
   const indexPath = path.join(OUT, 'index.html');
   let html = fs.readFileSync(indexPath, 'utf8');
+  if (rows) {
+    try {
+      const heroHtml = prerenderHero(rows);
+      if (heroHtml) {
+        const guard = `<script>(function(){var p=location.hash.slice(1).split(/[\/?]/)[0];if(['collection','product','about','cart','checkout','track-order','contact'].indexOf(p)>-1){var a=document.getElementById('app');if(a)a.innerHTML='';document.body.classList.remove('is-home');}})();</script>`;
+        const mainTag = '<main id="app" tabindex="-1"></main>';
+        if (html.includes(mainTag)) {
+          html = html.replace(mainTag, () => `<main id="app" tabindex="-1"><div class="page">${heroHtml}</div></main>\n  ${guard}`);
+          html = html.replace('<body>', '<body class="is-home">');
+          console.log('Hero written directly into index.html.');
+        } else console.warn('WARNING: <main id="app"> not found, hero not written into the page.');
+      }
+    } catch (error) {
+      console.warn('WARNING: could not write the hero into the page (' + error.message + ').');
+    }
+  }
   if (html.includes('<!--ARMIAG_PRELOAD-->')) html = html.replace('<!--ARMIAG_PRELOAD-->', () => injection);
   else html = html.replace('</head>', () => injection + '</head>');
   fs.writeFileSync(indexPath, html);
