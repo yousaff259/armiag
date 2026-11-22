@@ -18,22 +18,18 @@ let lastRenderedTrackingReference=null;
 function htmlEscape(value){return String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
 function parseHashRoute(){const [path='',query='']=location.hash.slice(1).split('?');let segments;try{segments=decodeURIComponent(path||'home').split('/')}catch{segments=['home']}return {segments,query:new URLSearchParams(query)}}
 let heroReady=false;
-const HOME_CACHE_KEY='armiag_home_cache';
-try{const cached=JSON.parse(localStorage.getItem(HOME_CACHE_KEY)||'null');if(Array.isArray(cached)&&cached.length){SITE_CONTENT=Object.fromEntries(cached.map(row=>[row.id,row]));heroReady=true;}}catch(error){}
-try{if(Array.isArray(window.ARMIAG_PRELOAD)&&window.ARMIAG_PRELOAD.length){SITE_CONTENT=Object.fromEntries(window.ARMIAG_PRELOAD.map(row=>[row.id,row]));heroReady=true;}}catch(error){}
 async function loadSupabaseProducts(){
   if(!window.armiagSupabase){catalogState='error';heroReady=true;render();return;}
   const contentPromise=window.armiagSupabase.from('homepage_content').select('id,heading,body,button_label,button_url,image_url,is_visible,is_published,eyebrow,sort_order,image_visible,image_published');
-  contentPromise.then(result=>{
-    const wasReady=heroReady;let changed=true;
+  contentPromise.then(async result=>{
     if(!result.error){
-      const rows=result.data||[];const json=JSON.stringify(rows);
-      try{changed=localStorage.getItem(HOME_CACHE_KEY)!==json;localStorage.setItem(HOME_CACHE_KEY,json);}catch(error){}
-      SITE_CONTENT=Object.fromEntries(rows.map(row=>[row.id,row]));
+      SITE_CONTENT=Object.fromEntries((result.data||[]).map(row=>[row.id,row]));
+      const hero=SITE_CONTENT.hero;
+      const src=hero&&hero.is_published&&hero.is_visible!==false?safeSiteUrl(hero.image_url):'';
+      if(src)await new Promise(resolve=>{const photo=new Image();photo.onload=photo.onerror=resolve;photo.src=src;setTimeout(resolve,3500);});
     }
-    heroReady=true;
-    if(!wasReady||changed)render();
-  },()=>{if(!heroReady){heroReady=true;render();}});
+    heroReady=true;render();
+  },()=>{heroReady=true;render();});
   const {data,error}=await window.armiagSupabase.from('products')
     .select('id,name,description,price_inr,size_ml,concentration,stock_quantity,is_active,fragrance_details,product_images(image_url,sort_order)')
     .eq('is_active',true).order('name');
@@ -173,7 +169,7 @@ function heroSlideHtml(slide,index){
   return `<article class="hero-slide${index===0?' is-active':''}"${index===0?'':' aria-hidden="true"'}><div class="hero-image"${style}></div><div class="hero-copy"><span class="eyebrow">${htmlEscape(slide.eyebrow)}</span>${title?`<${tag} class="hero-title">${title}</${tag}>`:''}${body?`<p>${htmlEscape(body)}</p>`:''}${label&&url?`<a class="button button-light" href="${htmlEscape(url)}">${htmlEscape(label)} <span>↗</span></a>`:''}</div>${slide.isSample?'<span class="hero-sample-tag">Sample slide · not shown on the live site</span>':''}</article>`;
 }
 function heroSlider(){
-  if(!heroReady)return '';
+  if(!heroReady)return `<section class="hero hero-slider" data-hero-slider style="background:#efefec"><div class="hero-slides"><article class="hero-slide is-active"><div class="hero-image" style="background:none"></div></article></div></section>`;
   const slides=heroSlides();if(!slides.length)return '';
   return `<section class="hero hero-slider" data-hero-slider aria-roledescription="carousel" aria-label="Featured fragrances"><div class="hero-slides">${slides.map(heroSlideHtml).join('')}</div>${slides.length>1?`<div class="hero-dots">${slides.map((slide,i)=>`<button type="button" class="hero-dot${i===0?' is-active':''}" data-slide="${i}" aria-label="Show slide ${i+1}"></button>`).join('')}</div>`:''}</section>`;
 }

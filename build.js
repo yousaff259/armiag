@@ -10,6 +10,7 @@ const vm = require('vm');
 
 // Website files may be inside a "site" folder, or directly in the project root.
 const OUT = path.join(__dirname, 'dist');
+const PREBAKE = false; // keep false: baking makes visitors see an old hero until the next build
 const SRC = fs.existsSync(path.join(__dirname, 'site', 'index.html')) ? path.join(__dirname, 'site') : __dirname;
 const SKIP = new Set(['build.js', 'netlify.toml', '.gitignore', 'dist', 'node_modules', '.git', 'package.json', 'package-lock.json', 'README.md']);
 
@@ -68,7 +69,9 @@ function escapeAttr(value) { return String(value).replace(/&/g, '&amp;').replace
   const config = readConfig();
   let injection = '';
   let rows = null;
-  if (!config.url || !config.key || /127\.0\.0\.1|localhost/.test(config.url)) {
+  if (!PREBAKE) {
+    console.log('Hero baking is off: the latest hero is loaded live on every visit.');
+  } else if (!config.url || !config.key || /127\.0\.0\.1|localhost/.test(config.url)) {
     console.warn('WARNING: supabase-config.js has no real Supabase address, so the hero was not pre-loaded.');
   } else {
     try {
