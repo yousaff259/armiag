@@ -147,7 +147,6 @@ function cartTotal(){return Object.entries(cart).reduce((sum,[id,q])=>{const v=v
 function updateBag(){document.querySelectorAll('.bag-count').forEach(el=>el.textContent=cartCount())}
 function showToast(message){const el=document.querySelector('#toast');el.textContent=message;el.classList.add('show');clearTimeout(showToast.timer);showToast.timer=setTimeout(()=>el.classList.remove('show'),2300)}
 function productCards(){if(!PRODUCTS.length){const message=catalogState==='loading'?'Loading the collection…':catalogState==='error'?'The collection is temporarily unavailable. Please refresh in a moment.':'The collection is being prepared. Please check back soon.';return `<p class="empty-state">${message}</p>`}return PRODUCTS.map(p=>{const variants=variantsOf(p);const minPrice=variants.length?Math.min(...variants.map(x=>Number(x.price)||0)):Number(p.price)||0;const inStock=variants.some(x=>Number(x.stock_quantity)>0);return `<article class="product-card"><a class="product-visual" href="#product/${htmlEscape(p.id)}" aria-label="View ${htmlEscape(p.name)}"><img src="${htmlEscape(p.image||'')}" alt="Fragrance photograph for ${htmlEscape(p.name)}" loading="lazy"><span class="product-label">${htmlEscape(inStock?p.badge||'The collection':'Out of stock')}</span></a><div class="product-info"><div><h3><a href="#product/${htmlEscape(p.id)}">${htmlEscape(p.name)}</a></h3><p>${variants.map(x=>`${x.size_ml} ml`).join(' / ')}</p></div><strong>${money(minPrice)}</strong></div><a class="text-link" href="#product/${htmlEscape(p.id)}">Discover the fragrance</a></article>`}).join('')}
-const HERO_BODY='A considered world of fragrance. Discover the collection and find a scent that feels entirely your own.';
 const SAMPLE_HERO_SLIDES=[
   {id:'hero_2',eyebrow:'New launch',heading:'Crush',body:'A bold, velvety signature for evenings that deserve to be remembered.',button_label:'Shop now',button_url:'#collection',image_url:'assets/samples/hero-ruby.jpg'}
 ];
@@ -155,8 +154,7 @@ function isLocalPreview(){return ['localhost','127.0.0.1'].includes(location.hos
 function heroSlides(){
   const c=SITE_CONTENT||{},list=[],first=c.hero;
   const img=r=>(r.image_published!==false&&r.image_visible!==false)?(r.image_url||''):'';
-  if(!first?.is_published)list.push({o:first?.sort_order??0,s:{id:'hero',isDefault:true,eyebrow:'The art of scent · Armiag'}});
-  else if(first.is_visible)list.push({o:first.sort_order??0,s:{id:'hero',eyebrow:first.eyebrow||'The art of scent · Armiag',heading:first.heading??'',body:first.body??'',button_label:first.button_label??'',button_url:first.button_url||'#collection',image_url:first.image_url||''}});
+  if(first?.is_published&&first.is_visible)list.push({o:first.sort_order??0,s:{id:'hero',eyebrow:first.eyebrow||'The art of scent · Armiag',heading:first.heading??'',body:first.body??'',button_label:first.button_label??'',button_url:first.button_url||'#collection',image_url:first.image_url||''}});
   for(const sample of SAMPLE_HERO_SLIDES){
     const row=c[sample.id];
     if(row?.is_published){if(row.is_visible)list.push({o:row.sort_order??1,s:{id:sample.id,eyebrow:row.eyebrow||'Armiag',heading:row.heading||'',body:row.body||'',button_label:row.button_label||'',button_url:row.button_url||'',image_url:img(row)}});}
@@ -167,15 +165,15 @@ function heroSlides(){
 function heroSlideHtml(slide,index){
   const image=safeSiteUrl(slide.image_url).replace(/["'\\]/g,'');
   const style=image?` style="background-image:linear-gradient(90deg,rgba(13,13,12,.72),rgba(13,13,12,.12) 62%),url('${htmlEscape(image)}')"`:'';
-  const title=slide.isDefault?'Presence<br><em>in every</em><br>moment.':htmlEscape(slide.heading);
-  const body=slide.isDefault?HERO_BODY:slide.body;
-  const label=slide.isDefault?'Explore the collection':slide.button_label;
-  const url=slide.isDefault?'#collection':safeSiteUrl(slide.button_url);
+  const title=htmlEscape(slide.heading);
+  const body=slide.body;
+  const label=slide.button_label;
+  const url=safeSiteUrl(slide.button_url);
   const tag=index===0?'h1':'h2';
   return `<article class="hero-slide${index===0?' is-active':''}"${index===0?'':' aria-hidden="true"'}><div class="hero-image"${style}></div><div class="hero-copy"><span class="eyebrow">${htmlEscape(slide.eyebrow)}</span>${title?`<${tag} class="hero-title">${title}</${tag}>`:''}${body?`<p>${htmlEscape(body)}</p>`:''}${label&&url?`<a class="button button-light" href="${htmlEscape(url)}">${htmlEscape(label)} <span>↗</span></a>`:''}</div>${slide.isSample?'<span class="hero-sample-tag">Sample slide · not shown on the live site</span>':''}</article>`;
 }
 function heroSlider(){
-  if(!heroReady)return `<section class="hero hero-slider" data-hero-slider><div class="hero-slides"><article class="hero-slide is-active"><div class="hero-image"></div></article></div></section>`;
+  if(!heroReady)return '';
   const slides=heroSlides();if(!slides.length)return '';
   return `<section class="hero hero-slider" data-hero-slider aria-roledescription="carousel" aria-label="Featured fragrances"><div class="hero-slides">${slides.map(heroSlideHtml).join('')}</div>${slides.length>1?`<div class="hero-dots">${slides.map((slide,i)=>`<button type="button" class="hero-dot${i===0?' is-active':''}" data-slide="${i}" aria-label="Show slide ${i+1}"></button>`).join('')}</div>`:''}</section>`;
 }

@@ -53,7 +53,7 @@ function prerenderHero(rows) {
   const pick = re => (appJs.match(re) || [])[0];
   const htmlEscape = pick(/^function htmlEscape[^\n]*$/m);
   const safeSiteUrl = pick(/^function safeSiteUrl[^\n]*$/m);
-  const start = appJs.indexOf('const HERO_BODY=');
+  const start = appJs.indexOf('const SAMPLE_HERO_SLIDES=');
   const end = appJs.indexOf('let heroTimer=null;');
   if (!htmlEscape || !safeSiteUrl || start < 0 || end < start) throw new Error('could not find the hero functions in app.js');
   const FAKE = 'https://armiag-build.invalid';
