@@ -6,7 +6,7 @@ const loginMessage = document.querySelector('#loginMessage');
 const notice = document.querySelector('#adminNotice');
 const state = { user: null, products: [], orders: [], homepage: [], appearance: { settings: {}, is_published: false }, currentView: 'overview' };
 const SECTION_DEFAULTS = [
-  { id: 'hero', title: 'Hero section', heading: 'Presence in every moment.', body: 'A considered world of fragrance. Discover the collection and find a scent that feels entirely your own.', button_label: 'Explore the collection', button_url: '#collection', hasImage: true },
+  { id: 'hero', title: 'Hero section', heading: 'Presence in every moment.', body: 'A considered world of fragrance. Discover the collection and find a scent that feels entirely your own.', button_label: 'Shop now', button_url: '#collection', hasImage: true },
   { id: 'hero_2', title: 'Hero slide 2', heading: 'Your second headline', body: 'A short line about this fragrance or offer.', button_label: 'Shop now', button_url: '#collection', hasImage: true },
   { id: 'collection', title: 'Collection introduction', heading: 'Quietly unforgettable.', body: 'Discover the fragrances of Armiag.', button_label: 'View the collection', button_url: '#collection' },
   { id: 'story', title: 'Brand story', heading: 'Made to leave a feeling.', body: 'Armiag is a study in presence: considered objects, personal rituals and the memories that linger. Our story is still being written, and this is its first chapter.', button_label: 'Discover our story', button_url: '#about', hasImage: true },
@@ -23,10 +23,26 @@ function friendlyError(error) { return error?.message || 'Something went wrong. 
 function setBusy(element, busy) { if (!element) return; element.disabled = busy; element.classList.toggle('loading-overlay',busy); }
 function publicUrl(path) { return armiagClient.storage.from(BUCKET).getPublicUrl(path).data.publicUrl; }
 function fileExtension(file) { return (file.name.split('.').pop() || 'jpg').toLowerCase().replace(/[^a-z0-9]/g,'') || 'jpg'; }
+async function optimizeHeroImage(file) {
+  try {
+    if (!/^image\/(jpeg|png|webp)$/.test(file.type)) return file;
+    const bitmap = await createImageBitmap(file);
+    const scale = Math.min(1, 1920 / bitmap.width);
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.round(bitmap.width * scale);
+    canvas.height = Math.round(bitmap.height * scale);
+    canvas.getContext('2d').drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+    const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/webp', 0.8));
+    if (!blob || blob.type !== 'image/webp' || blob.size >= file.size) return file;
+    return new File([blob], file.name.replace(/\.[^.]+$/, '') + '.webp', { type: 'image/webp' });
+  } catch (error) { return file; }
+}
 async function uploadImage(file, folder) {
   if (!file.type.startsWith('image/') || file.size > 10 * 1024 * 1024) throw new Error('Choose an image file smaller than 10 MB.');
+  const isHomepage = folder.startsWith('homepage/');
+  if (isHomepage) file = await optimizeHeroImage(file);
   const path = `${folder}/${crypto.randomUUID()}.${fileExtension(file)}`;
-  const { error } = await armiagClient.storage.from(BUCKET).upload(path,file,{cacheControl:'3600',upsert:false,contentType:file.type});
+  const { error } = await armiagClient.storage.from(BUCKET).upload(path,file,{cacheControl:isHomepage?'31536000':'3600',upsert:false,contentType:file.type});
   if (error) throw error;
   return { path, url: publicUrl(path) };
 }
@@ -222,6 +238,10 @@ function renderHomepage() {
   const sections=SECTION_DEFAULTS.map(def=>state.homepage.find(row=>row.id===def.id)||{...def,is_visible:true,is_published:true,image_url:''});
   $('#homepageEditor').innerHTML=sections.map(section=>{const def=SECTION_DEFAULTS.find(item=>item.id===section.id);return `<form class="content-card homepage-card" data-section-id="${escapeHtml(section.id)}"><span class="eyebrow">HOMEPAGE SECTION</span><h3>${escapeHtml(section.title)}</h3>${section.image_url?`<img class="content-preview" src="${escapeHtml(section.image_url)}" alt="Current section image">`:''}<div class="form-grid"><label>Heading<input name="heading" value="${escapeHtml(section.heading||'')}" maxlength="240"></label>${def.button_label!==undefined?`<label>Button label<input name="button_label" value="${escapeHtml(section.button_label||'')}" maxlength="80"></label>`:''}<label class="full-field">Text<textarea name="body" rows="3" maxlength="2000">${escapeHtml(section.body||'')}</textarea></label>${def.button_url!==undefined?`<label>Button destination<input name="button_url" value="${escapeHtml(section.button_url||'')}" placeholder="#collection"></label>`:''}${def.hasImage?`<label>Section photograph<input name="image" type="file" accept="image/jpeg,image/png,image/webp,image/avif"><small>Maximum 10 MB. Leave empty to keep the current photo.</small></label>`:''}</div><div class="content-card-actions"><div><label class="publish-toggle"><input type="checkbox" name="is_visible"${section.is_visible?' checked':''}> Visible</label><label class="publish-toggle"><input type="checkbox" name="is_published"${section.is_published?' checked':''}> Published</label></div><button class="button button-dark" type="submit">Save section</button></div></form>`}).join('');
 }
+function triggerSiteRebuild() {
+  const hook=window.ARMIAG_SUPABASE_CONFIG?.buildHookUrl;if(!hook)return;
+  fetch(hook,{method:'POST',mode:'no-cors'}).catch(()=>{});
+}
 async function saveHomepageSection(form) {
   const id=form.dataset.sectionId;const defaults=SECTION_DEFAULTS.find(section=>section.id===id);const existing=state.homepage.find(section=>section.id===id)||{};const data=new FormData(form);
   let imageUrl=existing.image_url||'';
@@ -231,6 +251,7 @@ async function saveHomepageSection(form) {
   if(id==='hero'&&imageUrl){row.image_visible=true;row.image_published=true;}
   if(!defaults)throw new Error('Unknown homepage section.');
   const {error}=await armiagClient.from('homepage_content').upsert(row,{onConflict:'id'});if(error)throw error;
+  triggerSiteRebuild();
   showNotice(`${defaults.title} saved to armiagClient.`);await loadHomepage();
 }
 async function loadAppearance() {

@@ -166,7 +166,7 @@ function heroSlideHtml(slide,index){
   const label=slide.button_label;
   const url=safeSiteUrl(slide.button_url);
   const tag=index===0?'h1':'h2';
-  return `<article class="hero-slide${index===0?' is-active':''}"${index===0?'':' aria-hidden="true"'}><div class="hero-image"${style}></div><div class="hero-copy"><span class="eyebrow">${htmlEscape(slide.eyebrow)}</span>${title?`<${tag} class="hero-title">${title}</${tag}>`:''}${body?`<p>${htmlEscape(body)}</p>`:''}${label&&url?`<a class="button button-light" href="${htmlEscape(url)}">${htmlEscape(label)} <span>↗</span></a>`:''}</div>${slide.isSample?'<span class="hero-sample-tag">Sample slide · not shown on the live site</span>':''}</article>`;
+  return `<article class="hero-slide${index===0?' is-active':''}"${index===0?'':' aria-hidden="true"'}><div class="hero-image"${style}></div><div class="hero-copy"><span class="eyebrow">${htmlEscape(slide.eyebrow)}</span>${title?`<${tag} class="hero-title">${title}</${tag}>`:''}${body?`<p>${htmlEscape(body)}</p>`:''}</div>${label&&url?`<div class="hero-cta"><a class="button button-light" href="${htmlEscape(url)}">${htmlEscape(label)}</a></div>`:''}${slide.isSample?'<span class="hero-sample-tag">Sample slide · not shown on the live site</span>':''}</article>`;
 }
 function heroSlider(){
   if(!heroReady)return `<section class="hero hero-slider" data-hero-slider style="background:#efefec"><div class="hero-slides"><article class="hero-slide is-active"><div class="hero-image" style="background:none"></div></article></div></section>`;
