@@ -150,10 +150,10 @@ function isLocalPreview(){return ['localhost','127.0.0.1'].includes(location.hos
 function heroSlides(){
   const c=SITE_CONTENT||{},list=[],first=c.hero;
   const img=r=>(r.image_published!==false&&r.image_visible!==false)?(r.image_url||''):'';
-  if(first?.is_published&&first.is_visible)list.push({o:first.sort_order??0,s:{id:'hero',eyebrow:first.eyebrow||'The art of scent · Armiag',heading:first.heading??'',body:first.body??'',button_label:first.button_label??'',button_url:first.button_url||'#collection',image_url:first.image_url||''}});
+  if(first?.is_published&&first.is_visible)list.push({o:first.sort_order??0,s:{id:'hero',eyebrow:first.eyebrow||'',heading:first.heading??'',body:first.body??'',button_label:first.button_label??'',button_url:first.button_url||'#collection',image_url:first.image_url||''}});
   for(const sample of SAMPLE_HERO_SLIDES){
     const row=c[sample.id];
-    if(row?.is_published){if(row.is_visible)list.push({o:row.sort_order??1,s:{id:sample.id,eyebrow:row.eyebrow||'Armiag',heading:row.heading||'',body:row.body||'',button_label:row.button_label||'',button_url:row.button_url||'',image_url:img(row)}});}
+    if(row?.is_published){if(row.is_visible)list.push({o:row.sort_order??1,s:{id:sample.id,eyebrow:row.eyebrow||'',heading:row.heading||'',body:row.body||'',button_label:row.button_label||'',button_url:row.button_url||'',image_url:img(row)}});}
     else if(!row&&isLocalPreview())list.push({o:1,s:{...sample,isSample:true}});
   }
   return list.sort((a,b)=>a.o-b.o).map(x=>x.s);
@@ -166,7 +166,7 @@ function heroSlideHtml(slide,index){
   const label=slide.button_label;
   const url=safeSiteUrl(slide.button_url);
   const tag=index===0?'h1':'h2';
-  return `<article class="hero-slide${index===0?' is-active':''}"${index===0?'':' aria-hidden="true"'}><div class="hero-image"${style}></div><div class="hero-copy"><span class="eyebrow">${htmlEscape(slide.eyebrow)}</span>${title?`<${tag} class="hero-title">${title}</${tag}>`:''}${body?`<p>${htmlEscape(body)}</p>`:''}</div>${label&&url?`<div class="hero-cta"><a class="button button-light" href="${htmlEscape(url)}">${htmlEscape(label)}</a></div>`:''}${slide.isSample?'<span class="hero-sample-tag">Sample slide · not shown on the live site</span>':''}</article>`;
+  return `<article class="hero-slide${index===0?' is-active':''}"${index===0?'':' aria-hidden="true"'}><div class="hero-image"${style}></div><div class="hero-copy">${slide.eyebrow?`<span class="eyebrow">${htmlEscape(slide.eyebrow)}</span>`:''}${title?`<${tag} class="hero-title">${title}</${tag}>`:''}${body?`<p>${htmlEscape(body)}</p>`:''}</div>${label&&url?`<div class="hero-cta"><a class="button button-light" href="${htmlEscape(url)}">${htmlEscape(label)}</a></div>`:''}${slide.isSample?'<span class="hero-sample-tag">Sample slide · not shown on the live site</span>':''}</article>`;
 }
 function heroSlider(){
   if(!heroReady)return `<section class="hero hero-slider" data-hero-slider style="background:#efefec"><div class="hero-slides"><article class="hero-slide is-active"><div class="hero-image" style="background:none"></div></article></div></section>`;
