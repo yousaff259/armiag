@@ -288,3 +288,9 @@ body.is-home .site-header.is-scrolled:not(.menu-open){background:linear-gradient
   .hero-slide .hero-cta{bottom:68px}
   .hero-slide .hero-cta .button{padding:12px 28px;font-size:10.5px}
 }
+
+/* Hero: separate mobile image (set per slide via --hero-bg / --hero-bg-m) */
+.hero-slide .hero-image{background-image:var(--hero-bg,none)}
+@media(max-width:768px){
+  .hero-slide .hero-image{background-image:var(--hero-bg-m,var(--hero-bg,none));background-position:center}
+}
