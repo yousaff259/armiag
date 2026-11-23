@@ -294,3 +294,10 @@ body.is-home .site-header.is-scrolled:not(.menu-open){background:linear-gradient
 @media(max-width:768px){
   .hero-slide .hero-image{background-image:var(--hero-bg-m,var(--hero-bg,none));background-position:center}
 }
+
+/* Lock the page to the screen width: no sideways panning on phones */
+html,body{max-width:100%;overflow-x:hidden;overflow-x:clip;overscroll-behavior-x:none}
+body{position:relative;width:100%}
+.hero.hero-slider,.hero-slides,.hero-slide{max-width:100%;overflow:hidden;overflow:clip}
+.announcement{max-width:100%;overflow:hidden;overflow-wrap:anywhere}
+img,video,svg{max-width:100%}
