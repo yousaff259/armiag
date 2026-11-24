@@ -11,6 +11,12 @@
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Italiana&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="admin.css">
   <link rel="stylesheet" href="recovery.css">
+  <style>
+    .menu-help{margin:16px 2px 0;color:#77736b;font-size:13px;line-height:1.7}
+    .menu-help code,#menuTable code{background:#f1ede4;border-radius:4px;padding:1px 6px;font-size:12px}
+    .small-action[disabled]{opacity:.35;cursor:default}
+    .menu-empty{display:flex;flex-direction:column;align-items:flex-start;gap:12px;padding:6px 0}
+  </style>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="supabase-config.js" defer></script>
   <script src="supabase.js" defer></script>
@@ -42,6 +48,7 @@
         <button class="nav-item active" data-view="overview"><span>◫</span> Overview</button>
         <button class="nav-item" data-view="products"><span>◇</span> Products</button>
         <button class="nav-item" data-view="homepage"><span>▧</span> Homepage</button>
+        <button class="nav-item" data-view="menu"><span>☰</span> Menu</button>
         <button class="nav-item" data-view="appearance"><span>◐</span> Appearance</button>
         <button class="nav-item" data-view="orders"><span>▤</span> Orders</button>
       </nav>
@@ -63,6 +70,11 @@
         <section class="view" id="view-homepage">
           <div class="section-toolbar"><div><span class="eyebrow">STORY AND CAMPAIGNS</span><h2>Homepage</h2><p>Edit the sections currently shown on your storefront.</p></div></div>
           <div class="content-grid" id="homepageEditor"><div class="panel empty-panel">Loading homepage content…</div></div>
+        </section>
+        <section class="view" id="view-menu">
+          <div class="section-toolbar"><div><span class="eyebrow">STOREFRONT NAVIGATION</span><h2>Menu</h2><p>Add, rename, reorder or remove the links in the top menu of your website. Put an item under another one to make a dropdown with an arrow.</p></div><button class="button button-gold" id="addMenuButton">＋ Add menu item</button></div>
+          <section class="panel"><div class="table-wrap"><table><thead><tr><th>MENU ITEM</th><th>OPENS</th><th>VISIBILITY</th><th></th></tr></thead><tbody id="menuTable"><tr><td colspan="4">Open this page to load the menu…</td></tr></tbody></table></div></section>
+          <p class="menu-help"><b>Where an item opens:</b> <code>#collection</code> all products · <code>#collection/perfumes</code> only products whose <b>Collections</b> field (in the product editor) contains “perfumes” · <code>#about</code> · <code>#track-order</code> · <code>#contact</code> · or a full <code>https://</code> address.</p>
         </section>
         <section class="view" id="view-appearance">
           <div class="section-toolbar"><div><span class="eyebrow">THE Armiag SIGNATURE</span><h2>Appearance</h2><p>Adjust your brand colours, typography and wordmark.</p></div></div>
@@ -87,12 +99,28 @@
     </main>
   </div>
 
+  <dialog class="product-dialog" id="menuDialog">
+    <form id="menuForm" class="dialog-card">
+      <div class="dialog-heading"><div><span class="eyebrow">WEBSITE MENU</span><h2 id="menuDialogTitle">Add menu item</h2></div><button type="button" class="icon-button" id="closeMenuDialog" aria-label="Close">×</button></div>
+      <input type="hidden" name="id">
+      <div class="form-grid">
+        <label>Name shown on the website<input name="label" required maxlength="40" placeholder="Best seller"></label>
+        <label>Where it opens<input name="url" required maxlength="300" list="menuLinkPresets" placeholder="#collection/best-seller"></label>
+        <datalist id="menuLinkPresets"><option value="#collection">All products</option><option value="#collection/best-seller">Best seller</option><option value="#collection/new-arrivals">New arrivals</option><option value="#collection/perfumes">Perfumes</option><option value="#collection/attars">Attars</option><option value="#collection/bakhoor">Bakhoor</option><option value="#about">Our story</option><option value="#track-order">Track order</option><option value="#contact">Contact</option></datalist>
+        <label>Place it<select name="parent_id"><option value="">Top of the menu (main item)</option></select></label>
+        <label class="check-field"><input type="checkbox" name="is_visible" checked> Show on the website</label>
+      </div>
+      <div class="dialog-actions"><button type="button" class="button button-outline" id="cancelMenu">Cancel</button><button type="submit" class="button button-gold" id="saveMenuButton">Save <span>↗</span></button></div>
+    </form>
+  </dialog>
+
   <dialog class="product-dialog" id="productDialog">
     <form id="productForm" class="dialog-card">
       <div class="dialog-heading"><div><span class="eyebrow">COLLECTION EDITOR</span><h2 id="productDialogTitle">Add a fragrance</h2></div><button type="button" class="icon-button" id="closeProductDialog" aria-label="Close">×</button></div>
       <input type="hidden" name="id">
       <div class="form-grid">
         <label>Product name<input name="name" required maxlength="120"></label><label>Concentration / edition<input name="concentration" placeholder="Eau de parfum" maxlength="80"></label><label>Price (INR)<input name="price_inr" type="number" min="0" step="0.01" required></label><label>Size (ml)<input name="size_ml" type="number" min="1" step="1" required></label><label>Stock quantity<input name="stock_quantity" type="number" min="0" step="1" required value="0"></label><label class="check-field"><input type="checkbox" name="is_active"> Show this product on the storefront</label><label class="full-field">Short product description<textarea name="description" rows="4" maxlength="3000"></textarea></label>
+        <label class="full-field">Collections / categories<input name="collections" maxlength="200" placeholder="perfumes, best-seller, new-arrivals"><small>Separate with commas. A menu link such as <b>#collection/attars</b> shows every product that has “attars” here.</small></label>
         <div class="full-field fragrance-editor-heading"><span class="eyebrow">THE FRAGRANCE STORY</span><p>Editable sample copy is provided. Confirm all notes and claims with your fragrance supplier before launch.</p></div>
         <label class="full-field">Fragrance story<textarea name="story" rows="5" maxlength="3000"></textarea></label>
         <label>Fragrance family<input name="family" placeholder="Amber · Woody"></label><label>Character<input name="character" placeholder="Warm, refined, magnetic"></label><label>Top notes<input name="top_notes" placeholder="Bergamot, pink pepper"></label><label>Heart notes<input name="heart_notes" placeholder="Rose, cedarwood"></label><label class="full-field">Base notes<input name="base_notes" placeholder="Oud, amber, musk"></label>

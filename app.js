@@ -67,7 +67,7 @@ async function loadSupabaseProducts(){
   else SITE_APPEARANCE=appearanceResult.data;
   render();
 }
-window.addEventListener('armiag:supabase-ready',()=>loadSupabaseProducts().catch(error=>{catalogState='error';heroReady=true;PRODUCTS=[];console.error('Armiag storefront data could not be loaded.',error);render()}));
+window.addEventListener('armiag:supabase-ready',()=>{loadMenuItems();loadSupabaseProducts().catch(error=>{catalogState='error';heroReady=true;PRODUCTS=[];console.error('Armiag storefront data could not be loaded.',error);render()})});
 const app=document.querySelector('#app');
 const cartKey='armiag-demo-cart';
 const checkoutTokenKey='armiag-checkout-token';
@@ -142,7 +142,7 @@ function cartCount(){return Object.values(cart).reduce((n,q)=>n+q,0)}
 function cartTotal(){return Object.entries(cart).reduce((sum,[id,q])=>{const v=variantById(id);return sum+(v?v.price*q:0)},0)}
 function updateBag(){document.querySelectorAll('.bag-count').forEach(el=>el.textContent=cartCount())}
 function showToast(message){const el=document.querySelector('#toast');el.textContent=message;el.classList.add('show');clearTimeout(showToast.timer);showToast.timer=setTimeout(()=>el.classList.remove('show'),2300)}
-function productCards(){if(!PRODUCTS.length){const message=catalogState==='loading'?'Loading the collection…':catalogState==='error'?'The collection is temporarily unavailable. Please refresh in a moment.':'The collection is being prepared. Please check back soon.';return `<p class="empty-state">${message}</p>`}return PRODUCTS.map(p=>{const variants=variantsOf(p);const minPrice=variants.length?Math.min(...variants.map(x=>Number(x.price)||0)):Number(p.price)||0;const inStock=variants.some(x=>Number(x.stock_quantity)>0);return `<article class="product-card"><a class="product-visual" href="#product/${htmlEscape(p.id)}" aria-label="View ${htmlEscape(p.name)}"><img src="${htmlEscape(p.image||'')}" alt="Fragrance photograph for ${htmlEscape(p.name)}" loading="lazy"><span class="product-label">${htmlEscape(inStock?p.badge||'The collection':'Out of stock')}</span></a><div class="product-info"><div><h3><a href="#product/${htmlEscape(p.id)}">${htmlEscape(p.name)}</a></h3><p>${variants.map(x=>`${x.size_ml} ml`).join(' / ')}</p></div><strong>${money(minPrice)}</strong></div><a class="text-link" href="#product/${htmlEscape(p.id)}">Discover the fragrance</a></article>`}).join('')}
+function productCards(list=PRODUCTS){if(!list.length){const message=catalogState==='loading'?'Loading the collection…':catalogState==='error'?'The collection is temporarily unavailable. Please refresh in a moment.':'The collection is being prepared. Please check back soon.';return `<p class="empty-state">${message}</p>`}return list.map(p=>{const variants=variantsOf(p);const minPrice=variants.length?Math.min(...variants.map(x=>Number(x.price)||0)):Number(p.price)||0;const inStock=variants.some(x=>Number(x.stock_quantity)>0);return `<article class="product-card"><a class="product-visual" href="#product/${htmlEscape(p.id)}" aria-label="View ${htmlEscape(p.name)}"><img src="${htmlEscape(p.image||'')}" alt="Fragrance photograph for ${htmlEscape(p.name)}" loading="lazy"><span class="product-label">${htmlEscape(inStock?p.badge||'The collection':'Out of stock')}</span></a><div class="product-info"><div><h3><a href="#product/${htmlEscape(p.id)}">${htmlEscape(p.name)}</a></h3><p>${variants.map(x=>`${x.size_ml} ml`).join(' / ')}</p></div><strong>${money(minPrice)}</strong></div><a class="text-link" href="#product/${htmlEscape(p.id)}">Discover the fragrance</a></article>`}).join('')}
 const SAMPLE_HERO_SLIDES=[
   {id:'hero_2',eyebrow:'New launch',heading:'Crush',body:'A bold, velvety signature for evenings that deserve to be remembered.',button_label:'Shop now',button_url:'#collection',image_url:'assets/samples/hero-ruby.jpg'}
 ];
@@ -195,7 +195,14 @@ function initHeroSlider(){
   show(0);start();
 }
 function home(){return `<div class="page">${heroSlider()}<section class="section"><div class="section-heading"><span class="eyebrow">The collection</span><h2>Quietly unforgettable.</h2><p>Discover the fragrances of Armiag.</p></div><div class="product-grid">${productCards()}</div><div class="center" style="margin-top:45px"><a class="button button-outline" href="#collection">View the collection <span>↗</span></a></div></section><section class="story-band"><div class="story-image" role="img" aria-label="Artful fragrance and botanical still life"></div><div class="story-copy"><span class="eyebrow">A point of view</span><h2>Made to leave<br>a feeling.</h2><p>Armiag is a study in presence: considered objects, personal rituals and the memories that linger. Our story is still being written, and this is its first chapter.</p><a class="text-link" href="#about">Discover our story</a></div></section><section class="quote-section"><span class="eyebrow">The Armiag perspective</span><blockquote>“Fragrance is the art of being remembered without saying a word.”</blockquote><p>Armiag · The art of scent</p></section></div>`}
-function collection(){return `<div class="page"><section class="page-intro"><span class="eyebrow">Armiag · fragrances</span><h1>The collection</h1><p>Discover the fragrances in the Armiag collection.</p></section><section class="section collection-section"><div class="product-grid">${productCards()}</div></section></div>`}
+function slugify(v){return String(v||'').trim().toLowerCase().replace(/&/g,'and').replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'')}
+function productTags(p){return String(p.details?.collections||'').split(/[,\n]/).map(slugify).filter(Boolean)}
+function collectionLabel(slug){const a=[...document.querySelectorAll('.main-nav a')].find(x=>(x.getAttribute('href')||'').toLowerCase()==='#collection/'+slug);return a?a.textContent.trim():slug.replace(/-/g,' ').replace(/\b\w/g,c=>c.toUpperCase())}
+function collection(slug){
+  const tag=slugify(slug||'');
+  const list=tag?PRODUCTS.filter(p=>productTags(p).includes(tag)):PRODUCTS;
+  const grid=tag&&catalogState==='ready'&&!list.length?'<p class="empty-state">No fragrances in this section yet. Please check back soon.</p>':productCards(list);
+  return `<div class="page"><section class="page-intro"><span class="eyebrow">Armiag · fragrances</span><h1>${tag?htmlEscape(collectionLabel(tag)):'The collection'}</h1><p>${tag?'Explore this selection from the Armiag collection.':'Discover the fragrances in the Armiag collection.'}</p></section><section class="section collection-section"><div class="product-grid">${grid}</div></section></div>`}
 function detail(id){
   const p=product(id);if(!p||!variantsOf(p).length)return `<div class="page"><section class="page-intro"><h1>Fragrance unavailable</h1><p>This product may no longer be available.</p><a class="button" href="#collection">Return to the collection</a></section></div>`;
   const images=p.images?.length?p.images:[p.image],d=p.details||{},v=firstVariant(p);
@@ -335,24 +342,37 @@ function updateMegaPanel(){
   panel.innerHTML=`<div class="mega-inner">${items.map(p=>`<a class="mega-tile" href="#product/${htmlEscape(p.id)}"><span class="mega-photo">${p.image?`<img src="${htmlEscape(p.image)}" alt="" loading="lazy">`:''}</span><span class="mega-name">${htmlEscape(p.name)}</span></a>`).join('')}</div><a class="mega-all" href="#collection">View the full collection <span>↗</span></a>`;
 }
 (function initHeaderBehaviour(){
-  const header=document.querySelector('.site-header'),panel=document.querySelector('#megaPanel'),trigger=document.querySelector('.main-nav a[href="#collection"]');
+  const header=document.querySelector('.site-header'),panel=document.querySelector('#megaPanel'),nav=document.querySelector('.main-nav');
   if(!header)return;
   const syncScroll=()=>header.classList.toggle('is-scrolled',window.scrollY>40);
   window.addEventListener('scroll',syncScroll,{passive:true});syncScroll();
-  if(!panel||!trigger)return;
+  if(!panel||!nav)return;
   const canHover=()=>window.matchMedia('(hover:hover) and (min-width:901px)').matches;
   let timer=null;
+  const isTrigger=a=>Boolean(a)&&a.getAttribute('href')==='#collection'&&!a.closest('.sub-menu')&&!a.parentElement.classList.contains('has-sub');
   const open=()=>{if(!canHover()||panel.dataset.empty)return;clearTimeout(timer);panel.hidden=false;header.classList.add('menu-open')};
   const closeNow=()=>{clearTimeout(timer);panel.hidden=true;header.classList.remove('menu-open')};
   const closeSoon=()=>{clearTimeout(timer);timer=setTimeout(closeNow,160)};
-  trigger.addEventListener('mouseenter',open);trigger.addEventListener('focus',open);
-  document.querySelectorAll('.main-nav a').forEach(a=>{if(a!==trigger)a.addEventListener('mouseenter',closeNow)});
+  nav.addEventListener('mouseover',e=>{const a=e.target.closest('a');if(!a||!nav.contains(a))return;if(isTrigger(a))open();else closeNow()});
+  nav.addEventListener('focusin',e=>{const a=e.target.closest('a');if(isTrigger(a))open()});
   header.addEventListener('mouseleave',closeSoon);
   panel.addEventListener('mouseenter',()=>clearTimeout(timer));
   header.addEventListener('keydown',e=>{if(e.key==='Escape')closeNow()});
   header.addEventListener('focusout',e=>{if(!header.contains(e.relatedTarget))closeNow()});
   window.addEventListener('hashchange',closeNow);
 })();
+let menuLoading=false;
+async function loadMenuItems(){
+  if(!window.armiagSupabase||!window.ArmiagMenu||menuLoading)return;
+  menuLoading=true;
+  try{
+    const {data,error}=await window.armiagSupabase.from('menu_items').select('id,label,url,parent_id,sort_order').eq('is_visible',true).order('sort_order');
+    if(error)return; /* menu table not created yet: keep the menu written in index.html */
+    const rows=data||[];
+    if(rows.length){window.ArmiagMenu.render(rows);try{localStorage.setItem(window.ArmiagMenu.key,JSON.stringify(rows))}catch(err){}}
+    else{window.ArmiagMenu.reset();try{localStorage.removeItem(window.ArmiagMenu.key)}catch(err){}}
+  }catch(err){console.warn('Armiag menu could not be loaded.',err)}finally{menuLoading=false}
+}
 function applySiteContent(){
   const c=SITE_CONTENT||{};
   const update=(id,selector,{heading='h2',body='p',button='a',image=null}={})=>{
@@ -386,8 +406,8 @@ function applySiteContent(){
     else if(s.logoText){mark.textContent=/^armiag$/i.test(String(s.logoText).trim())?'Armiag':s.logoText;}
   });
 }
-function updateSeo(page,id){const meta=document.querySelector('meta[name="description"]');let title='Armiag — The Art of Scent',description='Armiag — a considered world of fragrance. Discover the collection and the art of scent.';if(page==='product'){const item=product(id);if(item){title=item.details?.seo_title||`${item.name} | Armiag`;description=item.details?.seo_description||item.description||description}else{title='Fragrance unavailable | Armiag';description='This Armiag fragrance is no longer available.'}}else if(page==='collection'){title='The Collection | Armiag'}else if(page==='about'){title='Our Story | Armiag'}else if(page==='cart'){title='Your Bag | Armiag'}else if(page==='checkout'){title='Checkout | Armiag'}else if(page==='track-order'){title='Track Your Order | Armiag'}else if(page==='contact'){title='Contact Armiag'}document.title=title;if(meta)meta.content=description}
-function render(){const parsed=parseHashRoute(),route=parsed.segments,page=route[0],trackingReference=page==='track-order'?(parsed.query.get('order')||''):null;const newTrackingRoute=page==='track-order'&&(lastRenderedPage!=='track-order'||trackingReference!==lastRenderedTrackingReference);if(newTrackingRoute){clearTrackingPollTimer();trackingPollingEnabled=false;trackingResumeAfterRequest=false;TRACKED_ORDER=null;TRACKING_LOOKUP=null;TRACKING_LAST_UPDATED=null;TRACKING_REFRESH_WARNING='';if(trackingRequest){trackingGeneration++;trackingRequest.controller.abort();}}lastRenderedPage=page;lastRenderedTrackingReference=trackingReference;app.innerHTML=page==='collection'?collection():page==='product'?detail(route[1]):page==='about'?about():page==='cart'?cartPage():page==='checkout'?checkout():page==='track-order'?trackOrderPage():page==='contact'?contact():home();updateSeo(page,route[1]);applySiteContent();document.body.classList.toggle('is-home',!['collection','product','about','cart','checkout','track-order','contact'].includes(page)&&Boolean(document.querySelector('[data-hero-slider]')));initHeroSlider();updateMegaPanel();updateBag();document.querySelector('.main-nav').classList.remove('open');document.querySelector('.menu-toggle').setAttribute('aria-expanded','false');if(page==='track-order'&&trackingPollingEnabled){if(document.hidden)clearTrackingPollTimer();else if(trackingRequest)trackingResumeAfterRequest=true;else scheduleTrackingRefresh(0);}else if(page!=='track-order'){clearTrackingPollTimer();if(trackingRequest){trackingGeneration++;trackingRequest.controller.abort();trackingResumeAfterRequest=false;}}window.scrollTo(0,0)}
+function updateSeo(page,id){const meta=document.querySelector('meta[name="description"]');let title='Armiag — The Art of Scent',description='Armiag — a considered world of fragrance. Discover the collection and the art of scent.';if(page==='product'){const item=product(id);if(item){title=item.details?.seo_title||`${item.name} | Armiag`;description=item.details?.seo_description||item.description||description}else{title='Fragrance unavailable | Armiag';description='This Armiag fragrance is no longer available.'}}else if(page==='collection'){title=id?collectionLabel(slugify(id))+' | Armiag':'The Collection | Armiag'}else if(page==='about'){title='Our Story | Armiag'}else if(page==='cart'){title='Your Bag | Armiag'}else if(page==='checkout'){title='Checkout | Armiag'}else if(page==='track-order'){title='Track Your Order | Armiag'}else if(page==='contact'){title='Contact Armiag'}document.title=title;if(meta)meta.content=description}
+function render(){const parsed=parseHashRoute(),route=parsed.segments,page=route[0],trackingReference=page==='track-order'?(parsed.query.get('order')||''):null;const newTrackingRoute=page==='track-order'&&(lastRenderedPage!=='track-order'||trackingReference!==lastRenderedTrackingReference);if(newTrackingRoute){clearTrackingPollTimer();trackingPollingEnabled=false;trackingResumeAfterRequest=false;TRACKED_ORDER=null;TRACKING_LOOKUP=null;TRACKING_LAST_UPDATED=null;TRACKING_REFRESH_WARNING='';if(trackingRequest){trackingGeneration++;trackingRequest.controller.abort();}}lastRenderedPage=page;lastRenderedTrackingReference=trackingReference;app.innerHTML=page==='collection'?collection(route[1]):page==='product'?detail(route[1]):page==='about'?about():page==='cart'?cartPage():page==='checkout'?checkout():page==='track-order'?trackOrderPage():page==='contact'?contact():home();updateSeo(page,route[1]);applySiteContent();document.body.classList.toggle('is-home',!['collection','product','about','cart','checkout','track-order','contact'].includes(page)&&Boolean(document.querySelector('[data-hero-slider]')));initHeroSlider();updateMegaPanel();updateBag();document.querySelector('.main-nav').classList.remove('open');document.querySelector('.menu-toggle').setAttribute('aria-expanded','false');if(page==='track-order'&&trackingPollingEnabled){if(document.hidden)clearTrackingPollTimer();else if(trackingRequest)trackingResumeAfterRequest=true;else scheduleTrackingRefresh(0);}else if(page!=='track-order'){clearTrackingPollTimer();if(trackingRequest){trackingGeneration++;trackingRequest.controller.abort();trackingResumeAfterRequest=false;}}window.scrollTo(0,0)}
 let detailQuantity=1;
 window.addEventListener('hashchange',()=>{detailQuantity=1;render()});
 document.addEventListener('click',e=>{
@@ -452,4 +472,5 @@ document.addEventListener('visibilitychange',()=>{
 });
 window.addEventListener('pagehide',()=>{clearTrackingPollTimer();if(trackingRequest?.isPolling)trackingRequest.controller.abort();});
 window.addEventListener('pageshow',()=>{if(trackingPollingEnabled&&trackingPageIsActive()&&!document.hidden){if(trackingRequest)trackingResumeAfterRequest=true;else refreshTrackedOrder();}});
+loadMenuItems();
 if(window.armiagSupabase)loadSupabaseProducts().catch(error=>{catalogState='error';PRODUCTS=[];console.error('Armiag storefront data could not be loaded.',error);render()});

@@ -17,18 +17,52 @@
   <script async src="https://checkout.razorpay.com/v1/checkout.js"></script>
   <script src="app.js" defer></script>
 </head>
-<body>
+<body class="is-home">
   <div class="announcement">A considered world of fragrance <span>·</span> Discover Armiag</div>
   <header class="site-header">
     <a class="wordmark" href="#home" aria-label="Armiag home">Armiag</a>
     <button class="menu-toggle" aria-label="Open navigation" aria-expanded="false"><span></span><span></span></button>
     <nav class="main-nav" aria-label="Main navigation">
-      <a href="#collection">The collection</a><a href="#about">Our story</a><a href="#track-order">Track order</a><a href="#contact">Contact</a>
+      <a href="#collection">The collection</a><a href="#collection/best-seller">Best seller</a><a href="#collection/new-arrivals">New arrivals</a>
+      <div class="nav-item has-sub"><a href="#collection">Categories</a><button type="button" class="sub-toggle" aria-expanded="false" aria-label="Show Categories options"><span class="chev" aria-hidden="true"></span></button><div class="sub-menu"><div class="sub-inner"><a href="#collection/perfumes">Perfumes</a><a href="#collection/attars">Attars</a><a href="#collection/bakhoor">Bakhoor</a></div></div></div>
+      <a href="#about">Our story</a><a href="#track-order">Track order</a><a href="#contact">Contact</a>
     </nav>
     <a class="bag-link" href="#cart" aria-label="Shopping bag">Bag <span class="bag-count">0</span></a>
     <div class="mega-panel" id="megaPanel" hidden></div>
   </header>
-  <main id="app" tabindex="-1"></main>
+  <script>
+  /* Armiag menu: builds the top menu from a list, shows the last saved menu instantly, handles the arrow buttons. */
+  (function(){
+    var KEY='armiag_menu_v1',nav=document.querySelector('.main-nav');if(!nav)return;
+    var fallback=nav.innerHTML;
+    function esc(v){return String(v==null?'':v).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]})}
+    function fix(u){u=String(u||'').trim();if(!u)return '#home';return /^(#|\/|https?:|mailto:|tel:)/i.test(u)?u:'#'+u}
+    function link(i){var u=fix(i.url),ext=/^https?:/i.test(u);return '<a href="'+esc(u)+'"'+(ext?' target="_blank" rel="noopener"':'')+'>'+esc(i.label)+'</a>'}
+    function by(a,b){return (Number(a.sort_order)||0)-(Number(b.sort_order)||0)}
+    function build(items){
+      var kids={},tops=[];
+      items.forEach(function(i){if(i.parent_id)(kids[i.parent_id]=kids[i.parent_id]||[]).push(i);else tops.push(i)});
+      tops.sort(by);
+      return tops.map(function(t){
+        var c=(kids[t.id]||[]).sort(by);if(!c.length)return link(t);
+        return '<div class="nav-item has-sub">'+link(t)+'<button type="button" class="sub-toggle" aria-expanded="false" aria-label="Show '+esc(t.label)+' options"><span class="chev" aria-hidden="true"></span></button><div class="sub-menu"><div class="sub-inner">'+c.map(link).join('')+'</div></div></div>';
+      }).join('');
+    }
+    function closeAll(){nav.querySelectorAll('.has-sub.open').forEach(function(i){i.classList.remove('open');var b=i.querySelector('.sub-toggle');if(b)b.setAttribute('aria-expanded','false')})}
+    window.ArmiagMenu={key:KEY,build:build,render:function(items){nav.innerHTML=build(items)},reset:function(){nav.innerHTML=fallback}};
+    try{var raw=localStorage.getItem(KEY);if(raw){var saved=JSON.parse(raw);if(Array.isArray(saved)&&saved.length)nav.innerHTML=build(saved)}}catch(e){}
+    nav.addEventListener('click',function(e){
+      var t=e.target.closest('.sub-toggle');if(!t)return;e.preventDefault();
+      var item=t.parentElement,willOpen=!item.classList.contains('open');closeAll();
+      if(willOpen){item.classList.add('open');t.setAttribute('aria-expanded','true')}
+    });
+    document.addEventListener('click',function(e){if(!e.target.closest('.has-sub'))closeAll()});
+    window.addEventListener('hashchange',closeAll);
+    document.addEventListener('keydown',function(e){if(e.key==='Escape')closeAll()});
+  })();
+  </script>
+  <main id="app" tabindex="-1"><div class="page"><section class="hero hero-slider" data-hero-slider style="background:#efefec"><div class="hero-slides"><article class="hero-slide is-active"><div class="hero-image" style="background:none"></div></article></div></section></div></main>
+  <script>(function(){var p=location.hash.slice(1).split(/[\/?]/)[0];if(['collection','product','about','cart','checkout','track-order','contact'].indexOf(p)>-1){var a=document.getElementById('app');if(a)a.innerHTML='';document.body.classList.remove('is-home');}})();</script>
   <footer class="site-footer">
     <div class="footer-top"><a class="wordmark" href="#home">Armiag</a><p>A considered world of fragrance.</p><a href="#contact">Get in touch <span>↗</span></a></div>
     <div class="footer-bottom"><span>© <span id="year"></span> Armiag</span><span>Made for moments that stay.</span><a href="#collection">Discover the collection</a></div>

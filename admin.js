@@ -286,7 +286,7 @@ const SAMPLE_FRAGRANCE_DETAILS = {
   delivery: 'Delivery estimate and charges to be confirmed for the customer’s location.', returns: 'Returns and exchanges are subject to the final Armiag policy.', gift: 'Gift packaging availability to be confirmed.',
   seo_title: 'Armiag | The Art of Scent', seo_description: 'Discover the Armiag fragrance collection. Explore considered compositions and find your personal scent.', is_sample: true
 };
-const DETAIL_FIELDS = ['story','family','character','top_notes','heart_notes','base_notes','intensity','mood','occasion','season','style','origin','concentration_detail','volume_detail','ingredients','usage','packaging','delivery','returns','gift','seo_title','seo_description'];
+const DETAIL_FIELDS = ['collections','story','family','character','top_notes','heart_notes','base_notes','intensity','mood','occasion','season','style','origin','concentration_detail','volume_detail','ingredients','usage','packaging','delivery','returns','gift','seo_title','seo_description'];
 function fillFragranceFields(form, details={}) {
   const values={...SAMPLE_FRAGRANCE_DETAILS,...(details||{})};
   for(const name of DETAIL_FIELDS) if(form.elements[name]) form.elements[name].value=values[name]||'';
@@ -427,10 +427,11 @@ function showView(name) {
   state.currentView=name;
   document.querySelectorAll('.view').forEach(view=>view.classList.toggle('active',view.id===`view-${name}`));
   document.querySelectorAll('.nav-item').forEach(button=>button.classList.toggle('active',button.dataset.view===name));
-  $('#viewTitle').textContent={overview:'Overview',products:'Products',homepage:'Homepage',appearance:'Appearance',orders:'Orders'}[name]||'Overview';
+  $('#viewTitle').textContent={overview:'Overview',products:'Products',homepage:'Homepage',appearance:'Appearance',menu:'Menu',orders:'Orders'}[name]||'Overview';
   $('#sidebar').classList.remove('open');
   if(name==='orders')loadOrders().catch(error=>showNotice(friendlyError(error),true));
   if(name==='homepage')loadHomepage().catch(error=>showNotice(friendlyError(error),true));
+  if(name==='menu')loadMenu().catch(error=>showNotice(friendlyError(error),true));
 }
 document.querySelectorAll('.nav-item').forEach(button=>button.addEventListener('click',()=>showView(button.dataset.view)));
 document.querySelectorAll('[data-go]').forEach(button=>button.addEventListener('click',()=>showView(button.dataset.go)));
@@ -452,3 +453,117 @@ $('#ordersTable').addEventListener('change',event=>{const select=event.target.cl
 $('#ordersTable').addEventListener('click',event=>{const button=event.target.closest('[data-view-order]');if(button){const order=state.orders.find(item=>item.id===button.dataset.viewOrder);if(order)renderOrderDetail(order);}});
 $('#orderDetail').addEventListener('click',event=>{if(event.target.id==='closeOrderDetail')$('#orderDetail').hidden=true;});
 $('#refreshOrders').addEventListener('click',()=>loadOrders().then(loadStats).catch(error=>showNotice(friendlyError(error),true)));
+
+
+/* ===== Website menu (top navigation of the storefront) ===== */
+state.menu=[];
+const MENU_STARTER=[
+  {label:'The collection',url:'#collection'},
+  {label:'Best seller',url:'#collection/best-seller'},
+  {label:'New arrivals',url:'#collection/new-arrivals'},
+  {label:'Categories',url:'#collection',children:[{label:'Perfumes',url:'#collection/perfumes'},{label:'Attars',url:'#collection/attars'},{label:'Bakhoor',url:'#collection/bakhoor'}]},
+  {label:'Our story',url:'#about'},{label:'Track order',url:'#track-order'},{label:'Contact',url:'#contact'}
+];
+const menuBy=(a,b)=>(Number(a.sort_order)||0)-(Number(b.sort_order)||0);
+function menuError(error){
+  const text=String(error?.message||'');
+  if(error?.code==='PGRST205'||error?.code==='42P01'||(/menu_items/i.test(text)&&/not found|does not exist|schema cache/i.test(text)))return 'The menu table is not set up yet. Open Supabase → SQL Editor, run the file menu-setup.sql once, then open this page again.';
+  return friendlyError(error);
+}
+async function loadMenu() {
+  const {data,error}=await armiagClient.from('menu_items').select('*').order('sort_order');
+  if(error){state.menu=[];$('#menuTable').innerHTML=`<tr><td colspan="4" class="empty-panel">${escapeHtml(menuError(error))}</td></tr>`;return;}
+  state.menu=data||[];renderMenu();
+}
+function orderedMenu() {
+  const tops=state.menu.filter(item=>!item.parent_id).sort(menuBy),rows=[];
+  for(const top of tops){
+    rows.push({item:top,level:0,siblings:tops});
+    const kids=state.menu.filter(item=>item.parent_id===top.id).sort(menuBy);
+    for(const kid of kids)rows.push({item:kid,level:1,siblings:kids});
+  }
+  return rows;
+}
+function renderMenu() {
+  const target=$('#menuTable');
+  if(!state.menu.length){target.innerHTML='<tr><td colspan="4"><div class="menu-empty"><span>No menu items yet. Your website is showing the menu written in its page file.</span><button class="button button-outline" type="button" id="seedMenuButton">Load the starter menu (including Perfumes, Attars, Bakhoor)</button></div></td></tr>';return;}
+  target.innerHTML=orderedMenu().map(({item,level,siblings})=>{
+    const index=siblings.findIndex(sibling=>sibling.id===item.id),hasKids=state.menu.some(other=>other.parent_id===item.id);
+    return `<tr><td><div style="padding-left:${level*28}px"><span class="product-title">${level?'↳ ':''}${escapeHtml(item.label)}</span>${hasKids?'<span class="product-subtitle">Dropdown ▾</span>':''}</div></td><td><code>${escapeHtml(item.url)}</code></td><td><span class="status-pill${item.is_visible?'':' off'}">${item.is_visible?'Visible':'Hidden'}</span></td><td><div class="row-actions"><button class="small-action" data-menu-up="${item.id}" aria-label="Move up"${index===0?' disabled':''}>↑</button><button class="small-action" data-menu-down="${item.id}" aria-label="Move down"${index===siblings.length-1?' disabled':''}>↓</button><button class="small-action" data-menu-edit="${item.id}">Edit</button><button class="small-action danger" data-menu-delete="${item.id}">Delete</button></div></td></tr>`;
+  }).join('');
+}
+function openMenuDialog(item) {
+  const form=$('#menuForm');form.reset();
+  form.elements.id.value=item?.id||'';
+  $('#menuDialogTitle').textContent=item?'Edit menu item':'Add menu item';
+  const select=form.elements.parent_id;
+  const tops=state.menu.filter(other=>!other.parent_id&&other.id!==item?.id).sort(menuBy);
+  select.innerHTML='<option value="">Top of the menu (main item)</option>'+tops.map(top=>`<option value="${top.id}">Inside the dropdown of: ${escapeHtml(top.label)}</option>`).join('');
+  select.disabled=Boolean(item&&state.menu.some(other=>other.parent_id===item.id));
+  select.value=item?.parent_id||'';
+  form.elements.label.value=item?.label||'';
+  form.elements.url.value=item?.url||'';
+  form.elements.is_visible.checked=item?item.is_visible!==false:true;
+  $('#menuDialog').showModal();
+}
+function nextMenuOrder(parentId) {
+  const group=state.menu.filter(item=>(item.parent_id||null)===(parentId||null));
+  return group.reduce((max,item)=>Math.max(max,Number(item.sort_order)||0),0)+10;
+}
+async function saveMenu(form) {
+  const id=form.elements.id.value,label=form.elements.label.value.trim(),url=form.elements.url.value.trim(),parent=form.elements.parent_id.value||null;
+  if(!label)throw new Error('Enter the name that should appear on the website.');
+  if(!url)throw new Error('Enter where this item should open, for example #collection/attars.');
+  const row={label,url,parent_id:parent,is_visible:form.elements.is_visible.checked,updated_at:new Date().toISOString()};
+  if(id){
+    const current=state.menu.find(item=>item.id===id);
+    if((current?.parent_id||null)!==parent)row.sort_order=nextMenuOrder(parent);
+    const {error}=await armiagClient.from('menu_items').update(row).eq('id',id);if(error)throw error;
+  }else{
+    row.sort_order=nextMenuOrder(parent);
+    const {error}=await armiagClient.from('menu_items').insert(row);if(error)throw error;
+  }
+  $('#menuDialog').close();showNotice('Menu saved. Your website shows it on the next page load.');await loadMenu();
+}
+async function moveMenu(id,direction) {
+  const entry=orderedMenu().find(row=>row.item.id===id);if(!entry)return;
+  const siblings=entry.siblings.slice(),from=siblings.findIndex(item=>item.id===id),to=from+direction;
+  if(to<0||to>=siblings.length)return;
+  [siblings[from],siblings[to]]=[siblings[to],siblings[from]];
+  for(const [n,item] of siblings.entries()){
+    const sortOrder=(n+1)*10;if(Number(item.sort_order)===sortOrder)continue;
+    const {error}=await armiagClient.from('menu_items').update({sort_order:sortOrder}).eq('id',item.id);if(error)throw error;
+  }
+  await loadMenu();
+}
+async function deleteMenuItem(id) {
+  const item=state.menu.find(other=>other.id===id);if(!item)return;
+  const kids=state.menu.filter(other=>other.parent_id===id).length;
+  if(!confirm(`Delete “${item.label}”${kids?` and its ${kids} dropdown item${kids>1?'s':''}`:''} from the menu?`))return;
+  const {error}=await armiagClient.from('menu_items').delete().eq('id',id);if(error)throw error;
+  showNotice('Menu item deleted.');await loadMenu();
+}
+async function seedMenu() {
+  let order=0;
+  for(const top of MENU_STARTER){
+    order+=10;
+    const {data,error}=await armiagClient.from('menu_items').insert({label:top.label,url:top.url,sort_order:order,is_visible:true}).select('id').single();if(error)throw error;
+    let childOrder=0;
+    for(const child of top.children||[]){childOrder+=10;const result=await armiagClient.from('menu_items').insert({label:child.label,url:child.url,parent_id:data.id,sort_order:childOrder,is_visible:true});if(result.error)throw result.error;}
+  }
+  showNotice('Starter menu added. You can now edit it here.');await loadMenu();
+}
+$('#addMenuButton').addEventListener('click',()=>openMenuDialog());
+$('#closeMenuDialog').addEventListener('click',()=>$('#menuDialog').close());
+$('#cancelMenu').addEventListener('click',()=>$('#menuDialog').close());
+$('#menuForm').addEventListener('submit',async event=>{event.preventDefault();const button=$('#saveMenuButton');setBusy(button,true);try{await saveMenu(event.currentTarget)}catch(error){showNotice(menuError(error),true)}finally{setBusy(button,false)}});
+$('#menuTable').addEventListener('click',async event=>{
+  const up=event.target.closest('[data-menu-up]'),down=event.target.closest('[data-menu-down]'),edit=event.target.closest('[data-menu-edit]'),del=event.target.closest('[data-menu-delete]'),seed=event.target.closest('#seedMenuButton');
+  try{
+    if(up)await moveMenu(up.dataset.menuUp,-1);
+    if(down)await moveMenu(down.dataset.menuDown,1);
+    if(edit)openMenuDialog(state.menu.find(item=>item.id===edit.dataset.menuEdit));
+    if(del)await deleteMenuItem(del.dataset.menuDelete);
+    if(seed){seed.disabled=true;await seedMenu();}
+  }catch(error){showNotice(menuError(error),true)}
+});
